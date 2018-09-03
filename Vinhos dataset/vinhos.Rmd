@@ -1,6 +1,6 @@
 ---
 title: "Vinhos"
-author: "Gabriel Dias"
+author: "Gabriel Dias - RM330587, Guilherme Lahr - RM330351"  
 date: "`r format(Sys.Date())`"
 output: github_document
 ---
@@ -23,7 +23,7 @@ library("corrgram")
 options("scipen" = 2)
 
 #leitura csv
-Vinhos <- read.csv2("D:/FIAP/5 - conceitos estatisticos/Solution/BaseWine_Red_e_White2018.csv", row.names=1)
+Vinhos <- read.csv2("D:/R/Vinhos dataset/BaseWine_Red_e_White2018.csv", row.names=1)
 ```
 *****
 ##Análise exploratória de dados

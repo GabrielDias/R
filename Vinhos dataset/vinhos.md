@@ -1,6 +1,6 @@
 Vinhos
 ================
-Gabriel Dias
+Gabriel Dias - RM330587, Guilherme Lahr - RM330351
 2018-09-02
 
 Importação de bibliotecas e configurações
@@ -18,7 +18,7 @@ library("corrgram")
 options("scipen" = 2)
 
 #leitura csv
-Vinhos <- read.csv2("D:/FIAP/5 - conceitos estatisticos/Solution/BaseWine_Red_e_White2018.csv", row.names=1)
+Vinhos <- read.csv2("D:/R/Vinhos dataset/BaseWine_Red_e_White2018.csv", row.names=1)
 ```
 
 ------------------------------------------------------------------------
