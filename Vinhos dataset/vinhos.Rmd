@@ -9,22 +9,129 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+##Importação de bibliotecas e configurações
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r warning=FALSE, message=FALSE}
+library("psych")
+library("plotly")
+library("gmodels")
+library("corrgram")
+library("gmodels")
+library("psych")
+library("corrgram")
+# mostrar até 2 casas decimais
+options("scipen" = 2)
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#leitura csv
+Vinhos <- read.csv2("D:/FIAP/5 - conceitos estatisticos/Solution/BaseWine_Red_e_White2018.csv", row.names=1)
+```
+*****
+##Análise exploratória de dados
+*****
+Para começar a exploração dos dados da base de vinhos será executado comandos que que exibem as variáveis existentes dentro do dataset, seus respectivos tipos e os primeiros registros:
 
-```{r cars}
-summary(cars)
+```{r warning=FALSE, message=FALSE}
+#mostrar as variáveis
+str(Vinhos)
+#mostra as variáveis
+names(Vinhos)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+Na amostra que temos vamos analisar a qualidade por tipo de vinho realizando o cálculo de distruibuição de frequeência absoluta:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r warning=FALSE, message=FALSE}
+# Frequência absoluta 
+#os 2 comandos dao o mesmo resultado porque nao ha nulos no campo qualidade
+#table(as.factor(Vinhos$quality), Vinhos$Vinho, useNA = "ifany")
+
+table(as.factor(Vinhos$quality), Vinhos$Vinho)
+
+#outra visualização, comparando distribuição dos dados por nota e tipo de vinho
+CrossTable(as.factor(Vinhos$quality), Vinhos$Vinho) 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Temos 4898 observações de vinho branco e 1599 de vinho tinto. Por enquanto pode-se observar que da amostra o vinho tinto nunca teve nota 9 e que a maior parte das notas atribuidas foram 5 e 6 (para ambos os vinhos). Abaixo vamos analisar um sumário de cada variável do dataset (min, max, mediana, média, $1^o$ e $3^o$ quartis)
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+summary(Vinhos)
+
+attach(Vinhos)
+par (mfrow=c(3,4))
+hist(fixedacidity)
+hist(volatileacidity)
+hist(citricacid )
+hist(residualsugar)
+hist(chlorides)
+hist(freesulfurdioxide)
+hist(totalsulfurdioxide)
+hist(density)
+hist(pH)
+hist(sulphates)
+hist(alcohol)
+hist(quality)
+```
+
+Embora nos dê uma boa visão de distribuição dos dados, os histogramas acima podem dificultar a análise em cima de vinhos tinto e branco individualmente. O problema da sumarização acima é que os cálculos são feitos na base inteira, podendo mascarar outliers, por exemplo. Ou então a média ficar muito abaixo/acima do esperado por vinho (vimos anteriormente que a proporção de dados vinho tinto/branco não é equilibrada, é 3 para 1 praticamente). 
+
+Com o uso da função agreggate essa divisão por tipo de vinho será possível.
+
+```{r warning=FALSE, message=FALSE}
+#mediana
+aggregate(Vinhos[,-13], #remover o tipo de vinho, qualitativo
+          by = list(Vinhos$Vinho),
+          FUN = median)
+
+```
+
+Pela mediana, é possível perceber diferenças principalmente nas variáveis que estão associados ao dióxido de enxofre, principalmente a *totalsulfurdioxide*. O vinho tinto deveria ter menos açúcar que o branco também, pode-se fazer uma análise com essas variáveis para ver a distribuição dos dados
+
+```{r warning=FALSE, message=FALSE}
+boxplot(totalsulfurdioxide ~ Vinho, main='totalsulfurdioxide')
+boxplot(freesulfurdioxide ~ Vinho, main='freesulfurdioxide')
+boxplot(residualsugar ~ Vinho, main='residualsugar')
+```
+*****
+## Remoção de outliers
+*****
+Vamos separar em 2 datasets para remoção dos outliers.
+
+```{r warning=FALSE, message=FALSE}
+branco <- subset(Vinhos, Vinho=="WHITE", select=c(quality,fixedacidity,volatileacidity,citricacid,residualsugar,
+                                                 chlorides,freesulfurdioxide,totalsulfurdioxide,density,pH,
+                                                 sulphates,alcohol))
+tinto <- subset(Vinhos, Vinho=="RED", select=c(quality,fixedacidity,volatileacidity,citricacid,residualsugar,
+                                                 chlorides,freesulfurdioxide,totalsulfurdioxide,density,pH,
+                                                 sulphates,alcohol))
+
+summary(branco)
+ 
+summary(tinto)
+```
+
+Com os dados separados por tipo de vinho, calcular diferença interquartílica e depois remover dos outliers.
+
+```{r warning=FALSE, message=FALSE}
+#calculo da diferenca interquartilica, AIQ
+#açucar
+AIQ_residualsugar<-quantile(branco$residualsugar,.75,type=2)-quantile(branco$residualsugar,.25,type=2)
+limsup_residualsugar= quantile(branco$residualsugar,.75,type=2)+1.5*AIQ_residualsugar
+liminf_residualsugar= quantile(branco$residualsugar,.25,type=2)-1.5*AIQ_residualsugar
+branco <- subset(branco, residualsugar >= liminf_residualsugar & residualsugar <= limsup_residualsugar)
+
+
+AIQ_residualsugar<-quantile(tinto$residualsugar,.75,type=2)-quantile(tinto$residualsugar,.25,type=2)
+limsup_residualsugar= quantile(tinto$residualsugar,.75,type=2)+1.5*AIQ_residualsugar
+liminf_residualsugar= quantile(tinto$residualsugar,.25,type=2)-1.5*AIQ_residualsugar
+tinto <- subset(tinto, residualsugar >= liminf_residualsugar & residualsugar <= limsup_residualsugar)
+
+rm(AIQ_residualsugar)
+rm(limsup_residualsugar)
+rm(liminf_residualsugar)
+
+par (mfrow=c(1,2))
+attach(branco)
+boxplot(residualsugar, main='residualsugar - branco')
+
+attach(tinto)
+boxplot(residualsugar, main='residualsugar - tinto')
+```
