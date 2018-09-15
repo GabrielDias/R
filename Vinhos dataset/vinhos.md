@@ -1,7 +1,7 @@
 Vinhos
 ================
 Gabriel Dias - RM330587, Guilherme Lahr - RM330351
-2018-09-02
+2018-09-15
 
 Importação de bibliotecas e configurações
 -----------------------------------------
@@ -11,9 +11,9 @@ library("psych")
 library("plotly")
 library("gmodels")
 library("corrgram")
-library("gmodels")
-library("psych")
-library("corrgram")
+library("corrplot")
+library("rpart")
+library("rpart.plot")
 # mostrar até 2 casas decimais
 options("scipen" = 2)
 
@@ -206,7 +206,7 @@ aggregate(Vinhos[,-13], #remover o tipo de vinho, qualitativo
     ## 1       6
     ## 2       6
 
-Pela mediana, é possível perceber diferenças principalmente nas variáveis que estão associados ao dióxido de enxofre, principalmente a *totalsulfurdioxide*. O vinho tinto deveria ter menos açúcar que o branco também, pode-se fazer uma análise com essas variáveis para ver a distribuição dos dados
+Pela mediana, é possível perceber diferenças principalmente nas variáveis que estão associados ao dióxido de enxofre, principalmente a *totalsulfurdioxide*. O vinho tinto deveria ter menos açúcar que o branco também, pode-se fazer uma análise com essas variáveis para ver a distribuição dos dados.
 
 ``` r
 boxplot(totalsulfurdioxide ~ Vinho, main='totalsulfurdioxide')
@@ -224,7 +224,16 @@ boxplot(freesulfurdioxide ~ Vinho, main='freesulfurdioxide')
 boxplot(residualsugar ~ Vinho, main='residualsugar')
 ```
 
-![](vinhos_files/figure-markdown_github/unnamed-chunk-6-3.png) \*\*\*\*\* \#\# Remoção de outliers \*\*\*\*\* Vamos separar em 2 datasets para remoção dos outliers.
+![](vinhos_files/figure-markdown_github/unnamed-chunk-6-3.png)
+
+------------------------------------------------------------------------
+
+Remoção de outliers
+-------------------
+
+------------------------------------------------------------------------
+
+Vamos separar em 2 datasets para remoção dos outliers.
 
 ``` r
 branco <- subset(Vinhos, Vinho=="WHITE", select=c(quality,fixedacidity,volatileacidity,citricacid,residualsugar,
@@ -233,6 +242,12 @@ branco <- subset(Vinhos, Vinho=="WHITE", select=c(quality,fixedacidity,volatilea
 tinto <- subset(Vinhos, Vinho=="RED", select=c(quality,fixedacidity,volatileacidity,citricacid,residualsugar,
                                                  chlorides,freesulfurdioxide,totalsulfurdioxide,density,pH,
                                                  sulphates,alcohol))
+par(mfrow=c(3,4))
+for(i in names(branco)){
+  if(i!='quality'){
+    plot(branco$quality,branco[[i]],xlab="qualidade",ylab=i)
+  }
+}
 
 summary(branco)
 ```
@@ -260,6 +275,19 @@ summary(branco)
     ##  Max.   :1.0140   Max.   :3.820   Max.   :1.0800   Max.   :14.20
 
 ``` r
+par(mfrow=c(3,4))
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-7-1.png)
+
+``` r
+for(i in names(tinto)){
+  if(i!='quality'){
+    plot(tinto$quality,tinto[[i]],xlab="qualidade",ylab=i)
+  }
+}
+
+rm(i)
 summary(tinto)
 ```
 
@@ -285,7 +313,27 @@ summary(tinto)
     ##  3rd Qu.:0.9978   3rd Qu.:3.400   3rd Qu.:0.7300   3rd Qu.:11.1000  
     ##  Max.   :1.0037   Max.   :4.010   Max.   :2.0000   Max.   :14.9000
 
-Com os dados separados por tipo de vinho, calcular diferença interquartílica e depois remover dos outliers.
+``` r
+par(mfrow=c(1,1))
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-7-2.png)
+
+``` r
+cor_tinto <- cor(tinto, method = "pearson")
+corrplot(cor_tinto, type = 'upper', method = 'number',number.cex=0.7)
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-7-3.png)
+
+``` r
+cor_branco <- cor(branco, method = "pearson")
+corrplot(cor_branco, type = 'upper', method = 'number',number.cex=0.7)
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-7-4.png)
+
+Com os dados separados por tipo de vinho, em ambos os casos a variável quality tem correlação mais alta com a variável álcool (porém com um índice relativamente médio - 0.43). Para remoção dos outliers, calcular diferença interquartílica.
 
 ``` r
 #calculo da diferenca interquartilica, AIQ
@@ -314,3 +362,280 @@ boxplot(residualsugar, main='residualsugar - tinto')
 ```
 
 ![](vinhos_files/figure-markdown_github/unnamed-chunk-8-1.png)
+
+``` r
+#totalsulfurdioxide
+AIQ_totalsulfurdioxide<-quantile(branco$totalsulfurdioxide,.75,type=2)-quantile(branco$totalsulfurdioxide,.25,type=2)
+limsup_totalsulfurdioxide = quantile(branco$totalsulfurdioxide,.75,type=2)+1.5*AIQ_totalsulfurdioxide
+liminf_totalsulfurdioxide = quantile(branco$totalsulfurdioxide,.25,type=2)-1.5*AIQ_totalsulfurdioxide
+branco <- subset(branco, totalsulfurdioxide >= liminf_totalsulfurdioxide & totalsulfurdioxide <= limsup_totalsulfurdioxide)
+
+
+AIQ_totalsulfurdioxide<-quantile(tinto$totalsulfurdioxide,.75,type=2)-quantile(tinto$totalsulfurdioxide,.25,type=2)
+limsup_totalsulfurdioxide = quantile(tinto$totalsulfurdioxide,.75,type=2)+1.5*AIQ_totalsulfurdioxide
+liminf_totalsulfurdioxide = quantile(tinto$totalsulfurdioxide,.25,type=2)-1.5*AIQ_totalsulfurdioxide
+tinto <- subset(tinto, totalsulfurdioxide >= liminf_totalsulfurdioxide & totalsulfurdioxide <= limsup_totalsulfurdioxide)
+
+rm(AIQ_totalsulfurdioxide)
+rm(limsup_totalsulfurdioxide)
+rm(liminf_totalsulfurdioxide)
+
+par (mfrow=c(1,2))
+attach(branco)
+boxplot(totalsulfurdioxide, main='totalsulfurdioxide - branco')
+
+attach(tinto)
+boxplot(totalsulfurdioxide, main='totalsulfurdioxide - tinto')
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-8-2.png)
+
+``` r
+#freesulfurdioxide
+AIQ_freesulfurdioxide<-quantile(branco$freesulfurdioxide,.75,type=2)-quantile(branco$freesulfurdioxide,.25,type=2)
+limsup_freesulfurdioxide= quantile(branco$freesulfurdioxide,.75,type=2)+1.5*AIQ_freesulfurdioxide
+liminf_freesulfurdioxide= quantile(branco$freesulfurdioxide,.25,type=2)-1.5*AIQ_freesulfurdioxide
+branco <- subset(branco, freesulfurdioxide >= liminf_freesulfurdioxide & freesulfurdioxide <= limsup_freesulfurdioxide)
+
+
+AIQ_freesulfurdioxide<-quantile(tinto$freesulfurdioxide,.75,type=2)-quantile(tinto$freesulfurdioxide,.25,type=2)
+limsup_freesulfurdioxide= quantile(tinto$freesulfurdioxide,.75,type=2)+1.5*AIQ_freesulfurdioxide
+liminf_freesulfurdioxide= quantile(tinto$freesulfurdioxide,.25,type=2)-1.5*AIQ_freesulfurdioxide
+tinto <- subset(tinto, freesulfurdioxide >= liminf_freesulfurdioxide & freesulfurdioxide <= limsup_freesulfurdioxide)
+
+rm(AIQ_freesulfurdioxide)
+rm(limsup_freesulfurdioxide)
+rm(liminf_freesulfurdioxide)
+
+par (mfrow=c(1,2))
+attach(branco)
+boxplot(freesulfurdioxide, main='freesulfurdioxide - branco')
+
+attach(tinto)
+boxplot(freesulfurdioxide, main='freesulfurdioxide - tinto')
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-8-3.png)
+
+``` r
+par(mfrow=c(1,1))
+cor_tinto <- cor(tinto, method = "pearson")
+corrplot(cor_tinto, type = 'upper', method = 'number',number.cex=0.7)
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-8-4.png)
+
+``` r
+cor_branco <- cor(branco, method = "pearson")
+corrplot(cor_branco, type = 'upper', method = 'number',number.cex=0.7)
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-8-5.png)
+
+Mesmo com a remoção dos outliers, a matriz de correlação ficou muito parecida com a anterior.
+
+------------------------------------------------------------------------
+
+Regressão linear
+----------------
+
+------------------------------------------------------------------------
+
+Não é esperado um resultado satisfatório a aplicação de uma regressão linear. Dado a matriz de correlação anterior, espera-se que a variável álcool seja mais relevante para montar a função. Desconsideramos a variável densidade devido seu correlacionamento negativo com álcool.
+
+``` r
+attach(tinto)
+set.seed(20)
+ajuste_tinto <- lm(quality ~ freesulfurdioxide + totalsulfurdioxide + residualsugar + fixedacidity + volatileacidity
+                   + citricacid + chlorides + pH + sulphates + alcohol)
+
+attach(branco)
+set.seed(20)
+ajuste_branco <- lm(quality ~ freesulfurdioxide + totalsulfurdioxide + residualsugar + fixedacidity + volatileacidity
+                   + citricacid + chlorides + pH + sulphates + alcohol)
+
+summary(ajuste_tinto)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = quality ~ freesulfurdioxide + totalsulfurdioxide + 
+    ##     residualsugar + fixedacidity + volatileacidity + citricacid + 
+    ##     chlorides + pH + sulphates + alcohol)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -2.66655 -0.39322 -0.06162  0.44557  2.66279 
+    ## 
+    ## Coefficients:
+    ##                      Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)         5.077e+00  6.803e-01   7.464 1.50e-13 ***
+    ## freesulfurdioxide   2.605e-03  2.818e-03   0.924  0.35544    
+    ## totalsulfurdioxide -2.646e-03  9.771e-04  -2.708  0.00685 ** 
+    ## residualsugar       3.905e-02  4.226e-02   0.924  0.35569    
+    ## fixedacidity        6.914e-07  1.907e-02   0.000  0.99997    
+    ## volatileacidity    -1.102e+00  1.321e-01  -8.346  < 2e-16 ***
+    ## citricacid         -2.811e-01  1.621e-01  -1.734  0.08313 .  
+    ## chlorides          -2.815e+00  4.452e-01  -6.322 3.49e-10 ***
+    ## pH                 -5.667e-01  1.736e-01  -3.264  0.00113 ** 
+    ## sulphates           1.326e+00  1.329e-01   9.977  < 2e-16 ***
+    ## alcohol             2.379e-01  1.763e-02  13.498  < 2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 0.6457 on 1352 degrees of freedom
+    ## Multiple R-squared:  0.346,  Adjusted R-squared:  0.3411 
+    ## F-statistic: 71.52 on 10 and 1352 DF,  p-value: < 2.2e-16
+
+``` r
+summary(ajuste_branco)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = quality ~ freesulfurdioxide + totalsulfurdioxide + 
+    ##     residualsugar + fixedacidity + volatileacidity + citricacid + 
+    ##     chlorides + pH + sulphates + alcohol)
+    ## 
+    ## Residuals:
+    ##     Min      1Q  Median      3Q     Max 
+    ## -3.2232 -0.4996 -0.0289  0.4559  3.1786 
+    ## 
+    ## Coefficients:
+    ##                      Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)         1.7834727  0.3487076   5.115 3.27e-07 ***
+    ## freesulfurdioxide   0.0074312  0.0009242   8.041 1.11e-15 ***
+    ## totalsulfurdioxide -0.0009346  0.0003798  -2.461 0.013892 *  
+    ## residualsugar       0.0241098  0.0026436   9.120  < 2e-16 ***
+    ## fixedacidity       -0.0409062  0.0148841  -2.748 0.006013 ** 
+    ## volatileacidity    -1.8586286  0.1138386 -16.327  < 2e-16 ***
+    ## citricacid         -0.0762075  0.0962914  -0.791 0.428734    
+    ## chlorides          -0.9684550  0.5387686  -1.798 0.072313 .  
+    ## pH                  0.1994948  0.0822527   2.425 0.015329 *  
+    ## sulphates           0.3714479  0.0973744   3.815 0.000138 ***
+    ## alcohol             0.3676125  0.0112746  32.605  < 2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 0.7468 on 4816 degrees of freedom
+    ## Multiple R-squared:  0.2803, Adjusted R-squared:  0.2788 
+    ## F-statistic: 187.5 on 10 and 4816 DF,  p-value: < 2.2e-16
+
+``` r
+set.seed(20)
+tinto$pred_rl <- predict(ajuste_tinto, newdata = tinto)
+set.seed(20)
+branco$pred_rl <- predict(ajuste_branco, newdata = branco)
+
+head(select(tinto, quality, pred_rl, alcohol))
+```
+
+    ##    quality  pred_rl alcohol
+    ## 3        6 5.675917     9.8
+    ## 6        5 5.658389     9.5
+    ## 7        4 5.340262    10.4
+    ## 8        6 6.208468    12.8
+    ## 17       6 5.120493     9.0
+    ## 19       5 5.058351     9.3
+
+``` r
+head(select(branco, quality, pred_rl, alcohol))
+```
+
+    ##    quality  pred_rl alcohol
+    ## 1        5 5.971484    10.5
+    ## 2        6 6.392254    12.6
+    ## 4        6 5.689496     9.4
+    ## 5        5 5.751394     9.1
+    ## 9        7 6.321873    11.4
+    ## 10       6 5.958161     9.0
+
+``` r
+par(mfrow=c(1,2))
+plot(tinto$quality,tinto$alcohol,xlab="qualidade",ylab="álcool")
+plot(tinto$pred_rl,tinto$alcohol,xlab="qualidade",ylab="álcool")
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-9-1.png)
+
+------------------------------------------------------------------------
+
+Árvore de decisão
+-----------------
+
+------------------------------------------------------------------------
+
+Aplicando árvore de decisão.
+
+``` r
+set.seed(20)
+arvore_br <- rpart(as.factor(quality) ~ freesulfurdioxide + totalsulfurdioxide + 
+    residualsugar + fixedacidity + volatileacidity + citricacid + 
+    chlorides + density + pH + sulphates + alcohol, data = branco)
+
+set.seed(20)
+arvore_t <- rpart(as.factor(quality) ~ freesulfurdioxide + totalsulfurdioxide + 
+    residualsugar + fixedacidity + volatileacidity + citricacid + 
+    chlorides + density + pH + sulphates + alcohol, data = tinto)
+
+#summary(arvore_br)
+#summary(arvore_t)
+
+rpart.plot(arvore_br)
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-10-1.png)
+
+``` r
+rpart.plot(arvore_t)
+```
+
+![](vinhos_files/figure-markdown_github/unnamed-chunk-10-2.png)
+
+``` r
+probabilidades_br <- predict(arvore_br, newdata = branco, type = 'prob')
+probabilidades_t <- predict(arvore_t, newdata = tinto, type = 'prob')
+
+branco$arv <- predict(arvore_br, newdata = branco, type = 'class')
+tinto$arv <- predict(arvore_t, newdata = tinto, type = 'class')
+
+head(select(tinto, quality, pred_rl, arv, alcohol),n = 15)
+```
+
+    ##    quality  pred_rl arv alcohol
+    ## 3        6 5.675917   5     9.8
+    ## 6        5 5.658389   5     9.5
+    ## 7        4 5.340262   6    10.4
+    ## 8        6 6.208468   6    12.8
+    ## 17       6 5.120493   5     9.0
+    ## 19       5 5.058351   5     9.3
+    ## 23       7 5.913455   5    10.0
+    ## 28       5 5.503969   5     9.6
+    ## 29       5 5.200222   5     9.4
+    ## 32       6 5.721431   6    11.2
+    ## 33       7 6.467487   6    10.9
+    ## 35       5 5.200986   5     9.5
+    ## 44       6 5.985753   5    10.0
+    ## 55       5 5.080096   5     9.4
+    ## 59       6 5.403282   5    10.0
+
+``` r
+head(select(branco, quality, pred_rl, arv, alcohol), n = 15)
+```
+
+    ##    quality  pred_rl arv alcohol
+    ## 1        5 5.971484   6   10.50
+    ## 2        6 6.392254   7   12.60
+    ## 4        6 5.689496   6    9.40
+    ## 5        5 5.751394   5    9.10
+    ## 9        7 6.321873   6   11.40
+    ## 10       6 5.958161   6    9.00
+    ## 11       5 5.558659   5    9.20
+    ## 12       6 5.906242   6    9.90
+    ## 13       6 5.958412   6   10.40
+    ## 14       6 6.349893   6   10.50
+    ## 15       6 6.023018   6   11.50
+    ## 16       5 6.354546   6   12.25
+    ## 18       6 5.677548   6   10.30
+    ## 20       6 6.408136   6   10.40
+    ## 21       4 5.534292   5   10.50

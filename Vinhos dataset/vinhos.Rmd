@@ -16,9 +16,9 @@ library("psych")
 library("plotly")
 library("gmodels")
 library("corrgram")
-library("gmodels")
-library("psych")
-library("corrgram")
+library("corrplot")
+library("rpart")
+library("rpart.plot")
 # mostrar até 2 casas decimais
 options("scipen" = 2)
 
@@ -83,13 +83,14 @@ aggregate(Vinhos[,-13], #remover o tipo de vinho, qualitativo
 
 ```
 
-Pela mediana, é possível perceber diferenças principalmente nas variáveis que estão associados ao dióxido de enxofre, principalmente a *totalsulfurdioxide*. O vinho tinto deveria ter menos açúcar que o branco também, pode-se fazer uma análise com essas variáveis para ver a distribuição dos dados
+Pela mediana, é possível perceber diferenças principalmente nas variáveis que estão associados ao dióxido de enxofre, principalmente a *totalsulfurdioxide*. O vinho tinto deveria ter menos açúcar que o branco também, pode-se fazer uma análise com essas variáveis para ver a distribuição dos dados.
 
 ```{r warning=FALSE, message=FALSE}
 boxplot(totalsulfurdioxide ~ Vinho, main='totalsulfurdioxide')
 boxplot(freesulfurdioxide ~ Vinho, main='freesulfurdioxide')
 boxplot(residualsugar ~ Vinho, main='residualsugar')
 ```
+
 *****
 ## Remoção de outliers
 *****
@@ -102,13 +103,34 @@ branco <- subset(Vinhos, Vinho=="WHITE", select=c(quality,fixedacidity,volatilea
 tinto <- subset(Vinhos, Vinho=="RED", select=c(quality,fixedacidity,volatileacidity,citricacid,residualsugar,
                                                  chlorides,freesulfurdioxide,totalsulfurdioxide,density,pH,
                                                  sulphates,alcohol))
+par(mfrow=c(3,4))
+for(i in names(branco)){
+  if(i!='quality'){
+    plot(branco$quality,branco[[i]],xlab="qualidade",ylab=i)
+  }
+}
 
 summary(branco)
  
+par(mfrow=c(3,4))
+for(i in names(tinto)){
+  if(i!='quality'){
+    plot(tinto$quality,tinto[[i]],xlab="qualidade",ylab=i)
+  }
+}
+
+rm(i)
 summary(tinto)
+
+par(mfrow=c(1,1))
+cor_tinto <- cor(tinto, method = "pearson")
+corrplot(cor_tinto, type = 'upper', method = 'number',number.cex=0.7)
+
+cor_branco <- cor(branco, method = "pearson")
+corrplot(cor_branco, type = 'upper', method = 'number',number.cex=0.7)
 ```
 
-Com os dados separados por tipo de vinho, calcular diferença interquartílica e depois remover dos outliers.
+Com os dados separados por tipo de vinho, em ambos os casos a variável quality tem correlação mais alta com a variável álcool (porém com um índice relativamente médio - 0.43). Para remoção dos outliers, calcular diferença interquartílica.
 
 ```{r warning=FALSE, message=FALSE}
 #calculo da diferenca interquartilica, AIQ
@@ -134,4 +156,124 @@ boxplot(residualsugar, main='residualsugar - branco')
 
 attach(tinto)
 boxplot(residualsugar, main='residualsugar - tinto')
+
+#totalsulfurdioxide
+AIQ_totalsulfurdioxide<-quantile(branco$totalsulfurdioxide,.75,type=2)-quantile(branco$totalsulfurdioxide,.25,type=2)
+limsup_totalsulfurdioxide = quantile(branco$totalsulfurdioxide,.75,type=2)+1.5*AIQ_totalsulfurdioxide
+liminf_totalsulfurdioxide = quantile(branco$totalsulfurdioxide,.25,type=2)-1.5*AIQ_totalsulfurdioxide
+branco <- subset(branco, totalsulfurdioxide >= liminf_totalsulfurdioxide & totalsulfurdioxide <= limsup_totalsulfurdioxide)
+
+
+AIQ_totalsulfurdioxide<-quantile(tinto$totalsulfurdioxide,.75,type=2)-quantile(tinto$totalsulfurdioxide,.25,type=2)
+limsup_totalsulfurdioxide = quantile(tinto$totalsulfurdioxide,.75,type=2)+1.5*AIQ_totalsulfurdioxide
+liminf_totalsulfurdioxide = quantile(tinto$totalsulfurdioxide,.25,type=2)-1.5*AIQ_totalsulfurdioxide
+tinto <- subset(tinto, totalsulfurdioxide >= liminf_totalsulfurdioxide & totalsulfurdioxide <= limsup_totalsulfurdioxide)
+
+rm(AIQ_totalsulfurdioxide)
+rm(limsup_totalsulfurdioxide)
+rm(liminf_totalsulfurdioxide)
+
+par (mfrow=c(1,2))
+attach(branco)
+boxplot(totalsulfurdioxide, main='totalsulfurdioxide - branco')
+
+attach(tinto)
+boxplot(totalsulfurdioxide, main='totalsulfurdioxide - tinto')
+
+#freesulfurdioxide
+AIQ_freesulfurdioxide<-quantile(branco$freesulfurdioxide,.75,type=2)-quantile(branco$freesulfurdioxide,.25,type=2)
+limsup_freesulfurdioxide= quantile(branco$freesulfurdioxide,.75,type=2)+1.5*AIQ_freesulfurdioxide
+liminf_freesulfurdioxide= quantile(branco$freesulfurdioxide,.25,type=2)-1.5*AIQ_freesulfurdioxide
+branco <- subset(branco, freesulfurdioxide >= liminf_freesulfurdioxide & freesulfurdioxide <= limsup_freesulfurdioxide)
+
+
+AIQ_freesulfurdioxide<-quantile(tinto$freesulfurdioxide,.75,type=2)-quantile(tinto$freesulfurdioxide,.25,type=2)
+limsup_freesulfurdioxide= quantile(tinto$freesulfurdioxide,.75,type=2)+1.5*AIQ_freesulfurdioxide
+liminf_freesulfurdioxide= quantile(tinto$freesulfurdioxide,.25,type=2)-1.5*AIQ_freesulfurdioxide
+tinto <- subset(tinto, freesulfurdioxide >= liminf_freesulfurdioxide & freesulfurdioxide <= limsup_freesulfurdioxide)
+
+rm(AIQ_freesulfurdioxide)
+rm(limsup_freesulfurdioxide)
+rm(liminf_freesulfurdioxide)
+
+par (mfrow=c(1,2))
+attach(branco)
+boxplot(freesulfurdioxide, main='freesulfurdioxide - branco')
+
+attach(tinto)
+boxplot(freesulfurdioxide, main='freesulfurdioxide - tinto')
+
+par(mfrow=c(1,1))
+cor_tinto <- cor(tinto, method = "pearson")
+corrplot(cor_tinto, type = 'upper', method = 'number',number.cex=0.7)
+
+cor_branco <- cor(branco, method = "pearson")
+corrplot(cor_branco, type = 'upper', method = 'number',number.cex=0.7)
+
 ```
+
+Mesmo com a remoção dos outliers, a matriz de correlação ficou muito parecida com a anterior.  
+
+*****
+## Regressão linear
+*****
+Não é esperado um resultado satisfatório a aplicação de uma regressão linear. Dado a matriz de correlação anterior, espera-se que a variável álcool seja mais relevante para montar a função. Desconsideramos a variável densidade devido seu correlacionamento negativo com álcool.
+```{r warning=FALSE, message=FALSE}
+
+attach(tinto)
+set.seed(20)
+ajuste_tinto <- lm(quality ~ freesulfurdioxide + totalsulfurdioxide + residualsugar + fixedacidity + volatileacidity
+                   + citricacid + chlorides + pH + sulphates + alcohol)
+
+attach(branco)
+set.seed(20)
+ajuste_branco <- lm(quality ~ freesulfurdioxide + totalsulfurdioxide + residualsugar + fixedacidity + volatileacidity
+                   + citricacid + chlorides + pH + sulphates + alcohol)
+
+summary(ajuste_tinto)
+summary(ajuste_branco)
+
+set.seed(20)
+tinto$pred_rl <- predict(ajuste_tinto, newdata = tinto)
+set.seed(20)
+branco$pred_rl <- predict(ajuste_branco, newdata = branco)
+
+head(select(tinto, quality, pred_rl, alcohol))
+head(select(branco, quality, pred_rl, alcohol))
+
+par(mfrow=c(1,2))
+plot(tinto$quality,tinto$alcohol,xlab="qualidade",ylab="álcool")
+plot(tinto$pred_rl,tinto$alcohol,xlab="qualidade",ylab="álcool")
+```
+
+*****
+## Árvore de decisão
+*****
+Aplicando árvore de decisão.
+```{r warning=FALSE, message=FALSE}
+set.seed(20)
+arvore_br <- rpart(as.factor(quality) ~ freesulfurdioxide + totalsulfurdioxide + 
+    residualsugar + fixedacidity + volatileacidity + citricacid + 
+    chlorides + density + pH + sulphates + alcohol, data = branco)
+
+set.seed(20)
+arvore_t <- rpart(as.factor(quality) ~ freesulfurdioxide + totalsulfurdioxide + 
+    residualsugar + fixedacidity + volatileacidity + citricacid + 
+    chlorides + density + pH + sulphates + alcohol, data = tinto)
+
+#summary(arvore_br)
+#summary(arvore_t)
+
+rpart.plot(arvore_br)
+rpart.plot(arvore_t)
+
+probabilidades_br <- predict(arvore_br, newdata = branco, type = 'prob')
+probabilidades_t <- predict(arvore_t, newdata = tinto, type = 'prob')
+
+branco$arv <- predict(arvore_br, newdata = branco, type = 'class')
+tinto$arv <- predict(arvore_t, newdata = tinto, type = 'class')
+
+head(select(tinto, quality, pred_rl, arv, alcohol),n = 15)
+head(select(branco, quality, pred_rl, arv, alcohol), n = 15)
+```
+
